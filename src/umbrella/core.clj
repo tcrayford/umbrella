@@ -3,15 +3,12 @@
   (:use clojure.contrib.io)
   (:use clojure.contrib.pprint)
   (:use clojure.contrib.find-namespaces)
-  (:use clojure.contrib.command-line)
-  (:use clojure.contrib.shell-out)
   (:use clojure.walk)
-  (:use clojure.set)
   (:import (clojure.lang RT)
            (java.io LineNumberReader InputStreamReader PushbackReader)))
 
 (defn examined-dir []
-  (java.io.File. (str (reduce str (drop-last (sh "pwd"))) "/src")))
+  (java.io.File. (str (System/getProperty "user.dir") "/src")))
 
 (defn get-source-from-var
   "Returns a string of the source code for the given symbol, if it can
@@ -101,18 +98,3 @@ Example: (get-source-from-var 'filter)"
          (sort-by
           comparison-sort-val %))
        (compare-all-subnodes node-map)))
-
-(defn -main [& args]
-  (with-command-line args
-    []
-    []
-    (do
-      (doseq
-          [f (file-seq (examined-dir))]
-        (if (clojure-source-file? f)
-          (load-file (str f))))
-      (println
-       (with-out-str
-         (pprint
-          (compare-all-nodes-report
-           (all-vars-in-dir (examined-dir)))))))))
