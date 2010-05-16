@@ -1,5 +1,5 @@
 (defproject umbrella "0.0.1"
-  :description "For keeping your code dry (cheers Giles)."
+  :description "For keeping your code DRY (cheers Giles)."
   :dependencies [[org.clojure/clojure
                   "1.2.0-master-SNAPSHOT"]
                  [org.clojure/clojure-contrib

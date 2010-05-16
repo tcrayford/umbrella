@@ -67,7 +67,7 @@ Example: (get-source-from-var 'filter)"
 (defn smart-lcs [x y]
   (if (or (not (seq? y)) (not (seq? x)))
     nil
-   (lcs x y)))
+    (lcs x y)))
 
 (defn all-sub-nodes [coll]
   (filter (complement symbol?)
@@ -85,7 +85,7 @@ Example: (get-source-from-var 'filter)"
            (fn [[k v]]
              (map
               (fn [[ke va]]
-                {:comparison (longest-sub-node v va)
+                {:repetition (longest-sub-node v va)
                  :from k :to ke})
               (dissoc node-map k)))
            node-map)))
@@ -93,10 +93,8 @@ Example: (get-source-from-var 'filter)"
 (defn count-nodes-report [[node-map]]
   (reduce + (map second (map (fn [[k v]] (vector k (node-count v))) node-map))))
 
-(defn comparison-sort-val [{c :comparison}]
-  (if (nil? c)
-    -1
-    (node-count c)))
+(defn comparison-sort-val [{c :repetition}]
+  (node-count c))
 
 (defn compare-all-nodes-report [node-map]
   (map #(last
@@ -108,8 +106,13 @@ Example: (get-source-from-var 'filter)"
   (with-command-line args
     []
     []
-    (println
-     (with-out-str
-       (pprint
-       (compare-all-nodes-report
-        (all-vars-in-dir (examined-dir))))))))
+    (do
+      (doseq
+          [f (file-seq (examined-dir))]
+        (if (clojure-source-file? f)
+          (load-file (str f))))
+      (println
+       (with-out-str
+         (pprint
+          (compare-all-nodes-report
+           (all-vars-in-dir (examined-dir)))))))))
