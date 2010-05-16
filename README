@@ -1,15 +1,12 @@
 # umbrella
+Keeps your code DRY by reporting repetition.
 
-FIXME: write description
 
 ## Usage
 
-FIXME: write
+`lein uberjar` it, then move the jar file into a clojure directory (TODO: rework as a lein plugin). Then run `java -jar umbrella-standalone.jar`
+
 
 ## Installation
 
-FIXME: write
-
-## License
-
-FIXME: write
+`lein uberjar`
