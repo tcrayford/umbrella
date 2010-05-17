@@ -35,11 +35,8 @@ Example: (get-source-from-var 'filter)"
               accum))
           {} (vals (ns-publics ns))))
 
-(defn all-vars-in-namespaces [& nss]
-  (merge (map source-for-all-vars-in-ns nss)))
-
 (defn all-vars-in-dir [dir]
-  (apply all-vars-in-namespaces (find-namespaces-in-dir dir)))
+  (apply merge (map source-for-all-vars-in-ns (find-namespaces-in-dir dir))))
 
 (defn node-count [node]
   (count (flatten node)))
@@ -76,7 +73,7 @@ Example: (get-source-from-var 'filter)"
        (sort-by node-count)
        (last)))
 
-(defn compare-all-subnodes [[node-map]]
+(defn compare-all-subnodes [node-map]
   (filter (complement nil?)
           (map
            (fn [[k v]]
@@ -87,7 +84,8 @@ Example: (get-source-from-var 'filter)"
               (dissoc node-map k)))
            node-map)))
 
-(defn count-nodes-report [[node-map]]
+;; node-map is of the form {var node, var node...}
+(defn count-nodes-report [node-map]
   (reduce + (map second (map (fn [[k v]] (vector k (node-count v))) node-map))))
 
 (defn comparison-sort-val [{c :repetition}]
@@ -98,3 +96,29 @@ Example: (get-source-from-var 'filter)"
          (sort-by
           comparison-sort-val %))
        (compare-all-subnodes node-map)))
+
+(defn var->ns [var]
+  (.name (:ns (meta var))))
+
+(defn var->line [var]
+  (:line (meta var)))
+
+(defn var->location-spec [var]
+  (str (var->ns var) var))
+
+(defn elisp-problem-report [problem]
+  `((:line ~(var->line (:from problem)))
+    (:text ~(reduce str (drop-last (str (:repetition problem)))))
+    (:message ~(str "duplicated with " (:to problem)))))
+
+(defn umbrella-run [examined-ns]
+  (reduce
+   (fn [problems p]
+     (conj problems
+           (elisp-problem-report p)))
+   '()
+   (->> (compare-all-nodes-report (all-vars-in-dir (examined-dir)))
+        (filter #(not (= (var->ns (:from %)) examined-ns)))
+        (filter :repetition))))
+
+
