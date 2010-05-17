@@ -37,13 +37,9 @@
 (defun clojure-umbrella-eval-sync (string)
   (slime-eval `(swank:eval-and-grab-output ,string)))
 
-(setq temp-swank-output '(((:line 10)
-                           (:text "[]")
-                           (:message "duplicated with clojure.core/defn"))))
-
-
 (defun clojure-umbrella-run ()
   (interactive)
+  (clojure-umbrella-clear)
   (clojure-umbrella-highlight-problems
    (read
     (car
@@ -61,8 +57,8 @@
 (defun clojure-umbrella-highlight-problem (line text message)
   (save-excursion
     (goto-line line)
-    (if (string-match text (slime-defun-at-point))
-        (search-forward text nil 't)
+    (progn
+      (search-forward text)
       (let ((beg (match-beginning 0))
             (end (match-end 0)))
         (let ((overlay (make-overlay beg end)))

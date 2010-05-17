@@ -63,9 +63,15 @@ Example: (get-source-from-var 'filter)"
     nil
     (lcs x y)))
 
-(defn all-sub-nodes [coll]
-  (filter (complement symbol?)
-          (tree-seq seq? seq coll)))
+(defn expand-tree [node]
+  "Expands a node into a seq of all its sub-node"
+  (next
+   (tree-seq #(some coll? %)
+             #(filter coll? %)
+             node)))
+
+(def all-sub-nodes
+  expand-tree)
 
 (defn longest-sub-node [x y]
   (->> (map smart-lcs (all-sub-nodes x) (all-sub-nodes y))
@@ -118,7 +124,6 @@ Example: (get-source-from-var 'filter)"
            (elisp-problem-report p)))
    '()
    (->> (compare-all-nodes-report (all-vars-in-dir (examined-dir)))
-        (filter #(not (= (var->ns (:from %)) examined-ns)))
-        (filter :repetition))))
-
-
+        (filter #(= (var->ns (:from %)) examined-ns))
+        (filter :repetition)
+        (filter #(not= (count (:repetition %)) 1)))))
