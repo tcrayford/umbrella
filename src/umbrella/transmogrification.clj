@@ -1,26 +1,35 @@
 (ns umbrella.transmogrification
-  (:use clojure.walk))
+  (:use clojure.walk)
+  (:use clojure.contrib.with-ns))
+
+(defmacro protect-from-exceptions [expr]
+  `(try ~expr (catch Exception ~'e nil)))
 
 (defn analyze [node]
-  (clojure.lang.Compiler/analyze clojure.lang.Compiler$C/EVAL node))
+  (protect-from-exceptions (clojure.lang.Compiler/analyze clojure.lang.Compiler$C/EVAL node)))
 
 (defmulti get-to-methods #(class (analyze %)))
+
+ (defmethod get-to-methods clojure.lang.Compiler$InvokeExpr [node]
+   (->> (analyze node)
+        .fexpr))
 
 (defmethod get-to-methods clojure.lang.Compiler$DefExpr [node]
   (->> (analyze node) .init .target))
 
-(defmethod get-to-methods clojure.lang.Compiler$InvokeExpr [node]
-  (->> (analyze node)
-       .fexpr))
+(defmethod get-to-methods :default [node]
+  nil)
 
 (defn all-vars-bound-in-node [node]
-  (->> (get-to-methods node)
-       .methods
-       first
-       .locals
-       keys
-       (map #(.sym %))
-       (into #{})))
+  (if-let [it (protect-from-exceptions (get-to-methods node))]
+   (->> it
+        .methods
+        first
+        .locals
+        keys
+        (map #(.sym %))
+        (into #{}))
+   #{}))
 
 (defn symbol-replacements [symbols]
   "Takes a symbol set and outputs a map of the elems of the symbol set to transmogrified variable name strings"
@@ -39,12 +48,17 @@
       (construct-replacement-node (replacements node) node)
       node)))
 
-(defn transmogrify [node]
-  (let [replacements (symbol-replacements (all-vars-bound-in-node node))
-        variable? (into #{} (keys replacements))]
-    (postwalk
-     #(transmogrify-sub-node % replacements)
-     node)))
+(defn find-bound-vars [node ns]
+  (->> (flatten node)
+       (filter symbol?)
+       (filter (complement #(ns-resolve ns %)))
+       (into #{})))
+
+(defn transmogrify [node ns]
+  (let [replacements (symbol-replacements (find-bound-vars node ns))]
+   (postwalk
+    #(transmogrify-sub-node % replacements)
+    node)))
 
 (defn maybe-replace-with-old-node [node]
   (if-let [n (:old (meta node))] n node))
@@ -53,4 +67,3 @@
   (postwalk
    maybe-replace-with-old-node
    transmogd-node))
-

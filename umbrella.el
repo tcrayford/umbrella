@@ -14,19 +14,19 @@
 
 ;; Faces
 
-;; (defface clojure-umbrella-bad-duplication-face
-;;   '((((class color) (background light))
-;;      :background "orange red") ;; TODO: Hard to read strings over this.
-;;     (((class color) (background dark))
-;;      :background "firebrick"))
-;;   "Face for showing duplicated code"
-;;   :group 'clojure-umbrella)
+ (defface clojure-umbrella-bad-duplication-face
+   '((((class color) (background light))
+      :background "orange red") ;; TODO: Hard to read strings over this.
+     (((class color) (background dark))
+      :background "firebrick"))
+   "Face for showing duplicated code"
+   :group 'clojure-umbrella-mode)
 
-(setq clojure-umbrella-bad-duplication-face
-      '((((class color) (background light))
-         :background "orange red") ;; TODO: Hard to read strings over this.
-        (((class color) (background dark))
-         :background "firebrick")))
+;; (setq clojure-umbrella-bad-duplication-face
+;;       '((((class color) (background light))
+;;          :background "orange red") ;; TODO: Hard to read strings over this.
+;;         (((class color) (background dark))
+;;          :background "firebrick")))
 
 ;; Support functions
 
@@ -37,16 +37,26 @@
 (defun clojure-umbrella-eval-sync (string)
   (slime-eval `(swank:eval-and-grab-output ,string)))
 
-(defun clojure-umbrella-run ()
-  (interactive)
-  (clojure-umbrella-clear)
-  (clojure-umbrella-highlight-problems
+(defun clojure-umbrella-get-results ()
+  (progn
+    (clojure-umbrella-eval-sync (format "(require '%s :reload)"
+                                        (slime-current-package)))
    (read
     (car
      (cdr
       (clojure-umbrella-eval-sync
        (concat "(require 'umbrella.core) (in-ns 'umbrella.core)
     (umbrella-run '" (slime-current-package) ")")))))))
+
+(defun clojure-umbrella-message-results ()
+  (interactive)
+  (message "%s" (clojure-umbrella-get-results)))
+
+(defun clojure-umbrella-run ()
+  (interactive)
+  (clojure-umbrella-clear)
+  (clojure-umbrella-highlight-problems
+   (clojure-umbrella-get-results)))
 
 (defun clojure-umbrella-highlight-problems (swank-output)
   (dolist (problem swank-output)
@@ -58,7 +68,7 @@
   (save-excursion
     (goto-line line)
     (progn
-      (search-forward text)
+      (search-forward text nil t)
       (let ((beg (match-beginning 0))
             (end (match-end 0)))
         (let ((overlay (make-overlay beg end)))
@@ -81,7 +91,8 @@
 
 (defvar clojure-umbrella-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-/") 'clojure-umbrella)
+    (define-key map (kbd "C-c C-/") 'clojure-umbrella-run)
+    (define-key map (kbd "C-c C-u") 'clojure-umbrella-show-result)
     map)
   "Keymap for Clojure umbrella mode.")
 
@@ -91,6 +102,9 @@
   (when (slime-connected-p)
     (run-hooks 'slime-connected-hook)))
 
-(defun clojure-umbrella-maybe-enable ())
+(progn
+  (defun clojure-umbrella-enable ()
+    (clojure-umbrella-mode t))
+  (add-hook 'clojure-mode-hook 'clojure-umbrella-enable))
 
-(add-hook 'slime-connected-hook 'clojure-umbrella-maybe-enable)
+(provide 'clojure-umbrella-mode)

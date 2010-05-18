@@ -1,9 +1,9 @@
 (ns umbrella.core
-  (:gen-class)
   (:use clojure.contrib.io)
   (:use clojure.contrib.pprint)
   (:use clojure.contrib.find-namespaces)
   (:use clojure.walk)
+  (:use umbrella.transmogrification)
   (:import (clojure.lang RT)
            (java.io LineNumberReader InputStreamReader PushbackReader)))
 
@@ -30,8 +30,8 @@ Example: (get-source-from-var 'filter)"
 
 (defn source-for-all-vars-in-ns [ns]
   (reduce (fn [accum v]
-            (if-let [code (get-source-from-var v)]
-              (assoc accum v (read-string code))
+            (if-let [code  (get-source-from-var v)]
+              (assoc accum v (transmogrify (drop 2 (read-string code)) ns))
               accum))
           {} (vals (ns-publics ns))))
 
@@ -65,13 +65,11 @@ Example: (get-source-from-var 'filter)"
 
 (defn expand-tree [node]
   "Expands a node into a seq of all its sub-node"
-  (next
-   (tree-seq #(some coll? %)
-             #(filter coll? %)
-             node)))
+  (tree-seq #(some coll? %)
+            #(filter coll? %)
+            node))
 
-(def all-sub-nodes
-  expand-tree)
+(def all-sub-nodes expand-tree)
 
 (defn longest-sub-node [x y]
   (->> (map smart-lcs (all-sub-nodes x) (all-sub-nodes y))
@@ -114,7 +112,7 @@ Example: (get-source-from-var 'filter)"
 
 (defn elisp-problem-report [problem]
   `((:line ~(var->line (:from problem)))
-    (:text ~(reduce str (drop-last (str (:repetition problem)))))
+    (:text ~(reduce str (drop 1(drop-last (str  (untransmogrify (:repetition problem)))))))
     (:message ~(str "duplicated with " (:to problem)))))
 
 (defn umbrella-run [examined-ns]
@@ -123,7 +121,7 @@ Example: (get-source-from-var 'filter)"
      (conj problems
            (elisp-problem-report p)))
    '()
-   (->> (compare-all-nodes-report (all-vars-in-dir (examined-dir)))
+   (->> (compare-all-nodes-report (source-for-all-vars-in-ns examined-ns))
         (filter #(= (var->ns (:from %)) examined-ns))
         (filter :repetition)
         (filter #(not= (count (:repetition %)) 1)))))
